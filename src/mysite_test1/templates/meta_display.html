@@ -1,0 +1,20 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+<head>
+    <title>Meta data from request.META function</title>
+</head>
+<body>
+    <h1>My meta data</h1>
+	<table>
+	{% for i in html %}
+	    <tr>
+	    	<td>{{ forloop.counter }}: {{ i }}</td>
+		</tr>
+	{% endfor %}
+	</table>
+    {% block footer %}
+    <hr>
+    <p>Thanks for visiting my site.</p>
+    {% endblock %}
+</body>
+</html>

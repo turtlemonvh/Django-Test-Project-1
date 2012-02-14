@@ -1,0 +1,23 @@
+{% extends "decision_support_base.html" %}
+
+{% block title %}Identify Variables{% endblock %}
+
+{% block content %}
+
+	<h2>Your Choices were</h2>
+	<ol>
+		{% for k, v in choices %}
+			<li>{{ k }} {{ v }}</li>
+		{% endfor %}
+	</ol>
+	
+	<h2>Identify Variables</h2>
+
+    <form action="mappings/" method="post">
+        <input type="text" name="Variable1"><br/>
+        <input type="text" name="Variable2"><br/>
+        <input type="text" name="Variable3"><br/>
+        <input type="submit" value="Next: Creatre Mappings">
+    </form>
+
+{% endblock %}

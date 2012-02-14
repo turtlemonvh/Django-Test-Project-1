@@ -1,0 +1,12 @@
+{% extends "base_mc.html" %}
+
+{% block title %}Calculate Pi{% endblock %}
+
+{% block content %}
+<p>The values pi for of {{ n_trials }} MC trials with {{ n_moves }} moves each are:</p>
+
+{% for pi in pi_list %}
+    <p>{{ forloop.counter }}: {{ pi }}</p>
+{% endfor %}
+
+{% endblock %}

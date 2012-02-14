@@ -1,0 +1,165 @@
+<head>
+	<script src="{{ STATIC_URL }}js/d3/d3.js" type='text/javascript'></script>
+	<script src="{{ STATIC_URL }}js/d3/d3.layout.js" type='text/javascript'> </script>
+	<script src="{{ STATIC_URL }}js/jquery-1.7.1.js" type='text/javascript'></script>
+	
+	<style>
+		.chart div {
+			font: 10px sans-serif;
+			background-color: steelblue;
+			text-align: right;
+			padding: 3px;
+			margin: 1px;
+			color: white;
+		}
+		
+		.chart rect {
+		  stroke: white;
+		  fill: steelblue;
+		 }
+		
+		.node {
+		  font: 10px sans-serif;
+		}
+				  
+		.node circle {
+		  fill: #fff;
+		  stroke: steelblue;
+		  stroke-width: 1.5px;
+		}
+			
+		.link {
+		  fill: none;
+		  stroke: #ccc;
+		  stroke-width: 1.5px;
+		}
+	}
+	</style>
+</head>
+<body>
+	<h1>TEST PAGE</h1>
+
+	<p class='gallery1'> Paragraph 1 </p>
+	<p class='gallery2'> Paragraph 2 </p>
+	<p class='gallery3'> Paragraph 3 </p>
+	<p class='gallery4' id='Paragraph4'> Paragraph 4 </p>
+	<img src="{{ STATIC_URL }}images/Penguins.jpg" />
+	
+	<script type='text/javascript'>
+		// Note: Can't include in header because hasn't encountered the body tag yet
+		var data = [4, 8, 15, 16, 23, 42];
+		var chart = d3.select(".gallery1").append("div")
+			.attr("class", "chart");
+		
+		var x = d3.scale.linear()
+		    .domain([0, d3.max(data)])
+		    .range(["0px", "400px"]);
+
+		chart.selectAll("div")
+		    .data(data)
+		  .enter().append("div")
+		    .style("width", x)
+		    .text(String);
+	</script>
+
+	<script type='text/javascript'>
+		var chart = d3.select(".gallery2").append("svg")
+		     .attr("class", "chart")
+		     .attr("width", 440)
+		     .attr("height", 140)
+		   .append("g")
+		   	 .attr("transform", "translate(10,15)");
+		     
+		var x = d3.scale.linear()
+		    .domain([0, d3.max(data)])
+		    .range([0, 420]);
+		    
+		var y = d3.scale.ordinal()
+		    .domain(data)
+		    .rangeBands([0, 120]);
+
+		chart.selectAll("rect")
+		    .data(data)
+		  .enter().append("rect")
+		    .attr("y", y)
+		    .attr("width", x)
+		    .attr("height", y.rangeBand());
+
+		chart.selectAll("text")
+		    .data(data)
+		  .enter().append("text")
+		  	.attr("x", x)
+		    .attr("y", function(d) { return y(d) + y.rangeBand() / 2; })
+		    .attr("dx", -3) // padding-right
+		    .attr("dy", ".35em") // vertical-align: middle
+		    .attr("text-anchor", "end") // text-align: right
+		    .text(String);
+		    
+		chart.selectAll("line")
+		    .data(x.ticks(10))
+		  .enter().append("line")
+		    .attr("x1", x)
+		    .attr("x2", x)
+		    .attr("y1", 0)
+		    .attr("y2", 120)
+		    .style("stroke", "#ccc");
+		    
+		chart.selectAll(".rule")
+		    .data(x.ticks(10))
+		  .enter().append("text")
+		    .attr("class", "rule")
+		    .attr("x", x)
+		    .attr("y", 0)
+		    .attr("dy", -3)
+		    .attr("text-anchor", "middle")
+		    .text(String);
+		    
+		chart.append("line")
+		    .attr("y1", 0)
+		    .attr("y2", 120)
+		    .style("stroke", "#000");
+
+	</script>
+	<script type='text/javascript'>
+		var w = 960,
+		    h = 2200;
+		
+		var cluster = d3.layout.cluster()
+		    .size([h, w - 160]);
+		
+		var diagonal = d3.svg.diagonal()
+		    .projection(function(d) { return [d.y, d.x]; });
+		
+		var vis = d3.select("#Paragraph4").append("svg")
+		    .attr("width", w)
+		    .attr("height", h)
+		  .append("g")
+		    .attr("transform", "translate(40, 0)");
+		 		
+		d3.json("{{ STATIC_URL }}data/flare.json", function(json) {
+		  var nodes = cluster.nodes(json);
+          		
+		  var link = vis.selectAll("path.link")
+		      .data(cluster.links(nodes))
+		    .enter().append("path")
+		      .attr("class", "link")
+		      .attr("d", diagonal);
+		
+		  var node = vis.selectAll("g.node")
+		      .data(nodes)
+		    .enter().append("g")
+		      .attr("class", "node")
+		      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; })
+		
+		  node.append("circle")
+		      .attr("r", 4.5);
+		
+		  node.append("text")
+		      .attr("dx", function(d) { return d.children ? -8 : 8; })
+		      .attr("dy", 3)
+		      .attr("text-anchor", function(d) { return d.children ? "end" : "start"; })
+		      .text(function(d) { return d.name; });
+		});
+	</script>
+	
+</body>

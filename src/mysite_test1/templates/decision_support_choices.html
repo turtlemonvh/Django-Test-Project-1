@@ -1,0 +1,14 @@
+{% extends "decision_support_base.html" %}
+
+{% block title %}Identify Choices{% endblock %}
+
+{% block content %}
+
+    <form action="select_variables/" method="post">
+        <input type="text" name="Choice1"><br/>
+        <input type="text" name="Choice2"><br/>
+        <input type="text" name="Choice3"><br/>
+        <input type="submit" value="Next: Identify Factors">
+    </form>
+
+{% endblock %}
