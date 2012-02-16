@@ -7,61 +7,136 @@
 	<script>
 	// Namespace protected functions
 	$(function() {
-		$( "#droppable" ).droppable({
-			drop: function( event, ui ) {
-				$( this )
-					.addClass( "ui-state-highlight" )
-					.find( "p" )
-						.html( "Dropped!" );
-			}
-		});
+		$( "#droppable" ).droppable();
 		
-		// These produce the same numbers
+		// Replace card in queue when double clicked
+		function repossessCard(card){
+			// Notify
+			console.log('Repossesing card');
+			console.log(card);
+
+			// Add and remove classes
+			card.removeClass("dropped_card");
+			card.addClass("undropped_card");
+			
+			// First move absolute position of all undroped down
+			var spacing = card.outerHeight(true);
+
+			// Compare offsets
+			console.log(card.offset());
+
+			// Should go on top
+			// Find the smallest vert offset and use this
+			card.offset($($(".undropped_card")[0]).offset());
+			var ncard_top = 5000;
+			var ncard_left;
+			$(".undropped_card").each(function(index,domE){
+				var o_offset = $(domE).offset();
+				var ntop = o_offset.top + spacing;
+				$(domE).offset({ top: ntop, left: o_offset.left})
+				// Look for the one highest up
+				if( o_offset.top < ncard_top){
+					ncard_top = o_offset.top;
+					ncard_left = o_offset.left;
+				}
+			})
+			card.offset({ top: ncard_top, left: ncard_left});
+			
+			console.log(card.offset());
+			
+			// Reorganize order in document
+			var cards = $("#cards_container").children();
+			var cnt = cards.length;
+			console.log("starting length=" + cnt);
+			
+			// Rearrange cards
+			var newcard_index;
+			for( var i = cnt - 1; i >= 0; i--){
+				// console.log(cards[i]);
+				if($(cards[i]).hasClass("undropped_card")){
+					//console.log("Found first undropped at: " + i);
+					newcard_index = i;
+					break;
+				}
+			}
+			
+			//alert("Found first undropped at: " + newcard_index);
+			console.log("Found first undropped at: " + newcard_index);
+			var temp = cards[newcard_index];
+			for( var i = 0; i < newcard_index; i++){
+				cards[i + 1] = cards[i];
+			}
+			cards[0] = temp;
+			
+			console.log("ending length=" + cards.length);
+			console.log("current length=" + $("#cards_container").children().length);
+			console.log($("#cards_container").children());
+						
+			$("#cards_container").children().remove(); // remove old items and replace
+			
+			console.log("ending length=" + cards.length);
+			console.log("current length=" + $("#cards_container").children().length);
+			
+         	$("#cards_container").append(cards).children().draggable({ revert: "invalid" });
+         	
+         	console.log("ending length=" + $("#cards_container").children().length);
+			
+		};
+		
+		// Do stuff when it gets dropped
 		$( "#droppable" ).bind( "drop", function(event, ui) {
-			//var string = "Droppable Offset: top " + ui.offset.top + ", left " + ui.offset.left + ".";
-			//alert(string);
+			// ui.draggable = draggable
+			// $(this) = droppable
+			console.log("card was dropped on canvas");
 			
-		});
-		// Tells the user if dragged into droppable
-		// Bind all draggables in the container when created
-		$('#cards_container').delegate( "div", "dragstop", function(event, ui) {
-			var $droppable = $( "#droppable" );
-			var noffset = $droppable.offset();
-			var w = $droppable.width();
-			var h = $droppable.height();
+			var toffset = $(this).offset();
+			var w = $(this).width();
+			var h = $(this).height();
 			
-			var in_draggable = false;
-			var w_rel = (ui.offset.left - noffset.left)/(w);
-			var h_rel = (ui.offset.top - noffset.top)/(h);
+			var w_rel = (ui.draggable.offset().left - toffset.left)/(w);
+			var h_rel = (ui.draggable.offset().top - toffset.top)/(h);
 			
-			if( ui.offset.left > noffset.left && ui.offset.left < (noffset.left + w)){
-				if( ui.offset.top > noffset.top && ui.offset.top < (noffset.top + h)){
-					in_draggable = true;
+			// When dropped, add and remove relevant classes
+			ui.draggable.removeClass("undropped_card");
+			ui.draggable.addClass("dropped_card");
+			
+			/*
+			 * Code to keep track of the position of the cards
+			 */
+			// First move the absolute position of cards around
+			var spacing = 0; // spacing between cards in px
+			$("#cards_container").children().each( function(index, domE){				
+				if( $(domE).hasClass("undropped_card")){
+					// move the element according to the number of dropped cards in front of it
+					var o_offset = $(domE).offset();
+					var ntop = o_offset.top - spacing;
+					$(domE).offset({ top: ntop, left: o_offset.left})
+				} else {
+					// Keep track of the space left behind by elements that will be moved
+					spacing += $(domE).outerHeight(true);
 				}
+			})
+
+			// Next move the order in which they show up in the document
+			var cards = $("#cards_container").children();
+			var cnt = cards.length;
+			
+			var temp;
+			for (var i = 0; i < cnt-1; i++){
+				temp = cards[i];
+				if( $(temp).hasClass("dropped_card")){
+					// Move it to the bottom
+					cards[i] = cards[i + 1];
+					cards[i + 1] = temp;
+				}				
 			}
+			$("#cards_container").children().remove(); // remove old items and replace
+         	$("#cards_container").append(cards).children().draggable({ revert: "invalid" });
+         	$(".dropped_card").bind('dblclick',function(){
+         		repossessCard($(this));
+     		});
 			
-			alert("w_r=" + w_rel + ", h_r=" + h_rel + ", inside="+ in_draggable);
-		})
-		
-		
-		
-		$( ".draggable" ).bind( "dragstop", function(event, ui) {
-			var $droppable = $( "#droppable" );
-			var noffset = $droppable.offset();
-			var w = $droppable.width();
-			var h = $droppable.height();
-			
-			var in_draggable = false;
-			var w_rel = (ui.offset.left - noffset.left)/(w);
-			var h_rel = (ui.offset.top - noffset.top)/(h);
-			
-			if( ui.offset.left > noffset.left && ui.offset.left < (noffset.left + w)){
-				if( ui.offset.top > noffset.top && ui.offset.top < (noffset.top + h)){
-					in_draggable = true;
-				}
-			}
-			
-			alert("w_r=" + w_rel + ", h_r=" + h_rel + ", inside="+ in_draggable);
+			// alert("w_r=" + w_rel + ", h_r=" + h_rel);
 		});
 	})
 	
@@ -70,8 +145,21 @@
 		// Create a new card with the form
 		$("#name_input").submit(function(){
 			var card = $('#new_card').val();
-			console.log('card name: ' + card);
-			$('<div class="ui-widget-content draggable">' + card + '</div>').prependTo($('#cards_container')).draggable();
+			console.log('card name: ' + card);			
+
+			// Position the new card
+			var spacing = $(".draggable").outerHeight(true); // spcaing between cards in px
+			var n_undropped = $(".undropped_card").length;
+			console.log("n_undropped = " + n_undropped)
+			
+			// Move all the cards down
+			$(".undropped_card").each(function(){
+				var o_offset = $(this).offset();
+				$(this).offset({ top: o_offset.top + spacing, left: o_offset.left})
+			})
+			
+			$('<div class="draggable ui-widget-content undropped_card">' + card + '</div>').prependTo($('#cards_container')).draggable({ revert: "invalid" });
+
 			$(this).find(':text').val(''); // reset form to avoid duplicates
 		})
 	})
@@ -79,35 +167,26 @@
 	<!-- Styling -->
 	<LINK href="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/css/le-frog/jquery-ui-1.8.17.custom.css" rel="stylesheet" type="text/css">
 	<style>
-	.draggable { width: 40px; height: 20px; padding: 0.5em; clear: both; margin: 10px 10px 10px 0; }
-	#droppable { width: 500px; height: 300px; padding: 0.5em; float: left; margin: 10px 10px 10px 0;
-		clear: both;
+	.draggable { width: 100px; height: 30px; padding: 0.5em; position:fixed; margin: 10px 10px 10px 10px; }
+	#droppable { width: 1000px; height: 500px; padding: 0.5em; float: left; margin: 10px 10px 10px 10px;
 		border: 1px solid black;
 	}
-	.demo{
-		width: 90%;
-	}
-	img {
-		float: left;
-	}
-	.floatstop {
-		clear: both;
-	}
+	#card_entry { float: left; }
 	</style>
 
 </head>
 <body>
-	<h1>TEST PAGE</h1>
-
-	<form id="name_input" action="javascript: var a=1;">
-		New card: <input type="text" id="new_card" name="newcardname" /><br />
-		<input type="submit" value="Submit" />
-	</form>
-	
-	<div id="cards_container"></div>
-	
-	<div id="droppable">
-		<p>Drop here</p>
+	<div id="card_entry">
+		<h1>TEST PAGE</h1>
+		
+		<form id="name_input" action="javascript: var a=1;">
+			New card: <input type="text" id="new_card" name="newcardname" /><br />
+			<input type="submit" value="Submit" />
+		</form>
+		
+		<div id="cards_container"></div>
 	</div>
+	
+	<div id="droppable"></div>
 	
 </body>
