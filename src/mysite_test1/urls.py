@@ -30,3 +30,7 @@ urlpatterns += patterns('mysite_test1.contact.views',
     (r'^ajax/xhr_test/$', 'xhr_test'),
     (r'^ajax/ajax_test/$', 'ajax_test'),
 )
+
+urlpatterns += patterns('mysite_test1.seventools.views',
+    (r'^seventools/$', 'createcards'),
+)

@@ -140,6 +140,7 @@ INSTALLED_APPS = (
     'south',
     'mysite_test1.southtut',
     'mysite_test1.southtut2',
+    'mysite_test1.seventools',
 )
 
 # A sample logging configuration. The only tangible logging
