@@ -77,7 +77,7 @@
          	$("#cards_container").append(cards).children();
          	
          	// Bind relevant events to cards in queue and in drop area
-         	$(".undropped_card").draggable({ revert: "invalid" }); // why .draggable({ revert: "invalid" })?
+         	$(".undropped_card").draggable({ revert: "invalid" });
          	$(".dropped_card").bind('dblclick',function(){
          		repossessCard($(this));
      		});			
@@ -147,9 +147,16 @@
          	$(".dropped_card").bind('dblclick',function(){
          		repossessCard($(this));
      		});
-			
-			// Record the position of the card on the canvas
-			alert("w_r=" + w_rel + ", h_r=" + h_rel);
+     		
+     		// Add card to database
+ 			console.log("adding card via xhr");
+     		var card_name = ui.draggable.text();
+     		var session_id = $("#session_select :selected").val();
+     		$.get("/seventools/cardsession/addcard/", { name: card_name, session_id: session_id, x_coord: w_rel, y_coord: h_rel },
+     		function(data){
+     			console.log(data);
+     		} );
+
 		});
 	})
 	

@@ -31,9 +31,12 @@ def session_cards_JSON(request):
 
 # Ajax method to add card
 def add_card(request):
+    message = request.GET['name'] + ", " + request.GET['session_id'] + ", " + request.GET['x_coord'];
+    session_obj = CardSession.objects.filter(id=int(float(request.GET['session_id'])));
+    # int(float(request.GET['session_id']))
     if (request.is_ajax() and request.method == 'GET'):
         newCard = Card(name = request.GET['name'],
-                    session=request.GET['session_id'], 
+                    session=session_obj[0],
                     x_coord=request.GET['x_coord'], 
                     y_coord=request.GET['y_coord'],
                     global_id="000-" + request.GET['session_id'] + "-" + request.GET['name'])
