@@ -69,6 +69,16 @@
      		});			
 		};
 		
+		// Determine where it was clicked
+		$( "#droppable" ).bind( "dblclick", function(event) {
+			var toffset = $(this).offset();
+			var w = $(this).width();
+			var h = $(this).height();
+			var w_rel = (event.pageX - toffset.left)/(w);
+			var h_rel = (event.pageY - toffset.top)/(h);
+			alert(w_rel +'%, '+ h_rel + '%');
+		})
+		
 		// Move a card from the queue into the drop area
 		$( "#droppable" ).bind( "drop", function(event, ui) {
 

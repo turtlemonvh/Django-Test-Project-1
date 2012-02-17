@@ -14,12 +14,6 @@ def hello(request):
     return HttpResponse("Hello World!")
 
 def current_datetime(request):
-    #===========================================================================
-    # now = datetime.datetime.now()
-    # t = get_template('current_datetime.html')
-    # html = t.render(Context({'current_date':now}))
-    # return HttpResponse(html)
-    #===========================================================================
     current_date = datetime.datetime.now()
     return render_to_response('current_datetime.html',locals())
 
