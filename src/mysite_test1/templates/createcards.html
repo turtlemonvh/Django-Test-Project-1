@@ -13,6 +13,20 @@
 		return newOffset;
 	}
 	
+	// Get all JSON data for current session
+	function updateDroppedCards(){
+		var session_id = $("#session_select :selected").val();
+		$.getJSON("/seventools/cardsession/json/", { id: session_id}, function(data) {
+					console.log('json card data retrieved');
+					var items = [];
+					var card;
+					$.each(data, function(key,val) {
+						card = val.fields;
+						console.log(card.name + ": " + card.x_coord + ", " + card.y_coord);
+					})
+	    });
+	}
+	
 	// Namespace protected functions
 	$(function() {
 		// Initialize the drop area
@@ -163,6 +177,7 @@
 																							.draggable({ revert: "invalid" })
 																							.offset(getNewCardOffset());		
 		})
+		
 	})
 	</script>
 	<!-- Styling -->
@@ -189,5 +204,14 @@
 	</div>
 	
 	<div id="droppable"></div>
+	<form id = "session_select" action="javascript: updateDroppedCards();">
+		<select>
+  		{% for session in sessions %}
+	  		<option value="{{ session.id }}">{{ session.name }}</option>
+		{% endfor %}
+		</select>
+		<br/>
+		<input type="submit" value="Update JSON"/>
+	</form>
 	
 </body>
