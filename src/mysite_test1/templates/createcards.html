@@ -5,119 +5,101 @@
 	<script src="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/js/jquery-1.7.1.min.js" type='text/javascript'></script>	
 	<script src="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/js/jquery-ui-1.8.17.custom.min.js" type='text/javascript'></script>
 	<script>
+	// Definines the placement of queued cards
+	function getNewCardOffset(){
+		var newOffset = $("#cards_container").offset();
+		newOffset.top += 5; 
+		newOffset.left += 10;
+		return newOffset;
+	}
+	
 	// Namespace protected functions
 	$(function() {
-		$( "#droppable" ).droppable();
-		
-		// Replace card in queue when double clicked
+		// Initialize the drop area
+		$( "#droppable" ).droppable();	
+		// Move card from drop area back into queue
 		function repossessCard(card){
 			// Notify
 			console.log('Repossesing card');
 			console.log(card);
-
+			
+			// Position card
+			card.offset(getNewCardOffset());
+			
+			// Move absolute position of all undroped down
+			var spacing = card.outerHeight(true);
+			$(".undropped_card").each(function(index,domE){
+				// Define new position in terms of old position
+				var o_offset = $(domE).offset();
+				$(domE).offset({ top: o_offset.top + spacing, left: o_offset.left})
+			})
+			
 			// Add and remove classes
 			card.removeClass("dropped_card");
 			card.addClass("undropped_card");
 			
-			// First move absolute position of all undroped down
-			var spacing = card.outerHeight(true);
-
-			// Compare offsets
-			console.log(card.offset());
-
-			// Should go on top
-			// Find the smallest vert offset and use this
-			card.offset($($(".undropped_card")[0]).offset());
-			var ncard_top = 5000;
-			var ncard_left;
-			$(".undropped_card").each(function(index,domE){
-				var o_offset = $(domE).offset();
-				var ntop = o_offset.top + spacing;
-				$(domE).offset({ top: ntop, left: o_offset.left})
-				// Look for the one highest up
-				if( o_offset.top < ncard_top){
-					ncard_top = o_offset.top;
-					ncard_left = o_offset.left;
-				}
-			})
-			card.offset({ top: ncard_top, left: ncard_left});
-			
-			console.log(card.offset());
-			
 			// Reorganize order in document
 			var cards = $("#cards_container").children();
 			var cnt = cards.length;
-			console.log("starting length=" + cnt);
 			
-			// Rearrange cards
+			// Get the index of the re-queued card
 			var newcard_index;
 			for( var i = cnt - 1; i >= 0; i--){
-				// console.log(cards[i]);
 				if($(cards[i]).hasClass("undropped_card")){
-					//console.log("Found first undropped at: " + i);
 					newcard_index = i;
 					break;
 				}
 			}
 			
-			//alert("Found first undropped at: " + newcard_index);
-			console.log("Found first undropped at: " + newcard_index);
+			// Reorder cards, moving the re-queued card to the top of the list
 			var temp = cards[newcard_index];
-			for( var i = 0; i < newcard_index; i++){
-				cards[i + 1] = cards[i];
+			for( var i = newcard_index; i > 0; i--){
+				cards[i] = cards[i - 1];
 			}
 			cards[0] = temp;
-			
-			console.log("ending length=" + cards.length);
-			console.log("current length=" + $("#cards_container").children().length);
-			console.log($("#cards_container").children());
-						
+
+			// Remove old list and add new						
 			$("#cards_container").children().remove(); // remove old items and replace
-			
-			console.log("ending length=" + cards.length);
-			console.log("current length=" + $("#cards_container").children().length);
-			
-         	$("#cards_container").append(cards).children().draggable({ revert: "invalid" });
+         	$("#cards_container").append(cards).children();
          	
-         	console.log("ending length=" + $("#cards_container").children().length);
-			
+         	// Bind relevant events to cards in queue and in drop area
+         	$(".undropped_card").draggable({ revert: "invalid" }); // why .draggable({ revert: "invalid" })?
+         	$(".dropped_card").bind('dblclick',function(){
+         		repossessCard($(this));
+     		});			
 		};
 		
-		// Do stuff when it gets dropped
+		// Move a card from the queue into the drop area
 		$( "#droppable" ).bind( "drop", function(event, ui) {
-			// ui.draggable = draggable
-			// $(this) = droppable
+
 			console.log("card was dropped on canvas");
 			
+			// Determine position of dropped card on drop area
 			var toffset = $(this).offset();
 			var w = $(this).width();
 			var h = $(this).height();
-			
 			var w_rel = (ui.draggable.offset().left - toffset.left)/(w);
 			var h_rel = (ui.draggable.offset().top - toffset.top)/(h);
 			
-			// When dropped, add and remove relevant classes
+			// Add and remove relevant classes
 			ui.draggable.removeClass("undropped_card");
 			ui.draggable.addClass("dropped_card");
 			
-			/*
-			 * Code to keep track of the position of the cards
-			 */
-			// First move the absolute position of cards around
-			var spacing = 0; // spacing between cards in px
+			// Move the card positions to fill gap left by dropped card
+			var spacing = 0;
 			$("#cards_container").children().each( function(index, domE){				
 				if( $(domE).hasClass("undropped_card")){
-					// move the element according to the number of dropped cards in front of it
+					// Move each card down to fill space left by dropped card
 					var o_offset = $(domE).offset();
 					var ntop = o_offset.top - spacing;
 					$(domE).offset({ top: ntop, left: o_offset.left})
 				} else {
-					// Keep track of the space left behind by elements that will be moved
+					// Track space left by dropped card
 					spacing += $(domE).outerHeight(true);
 				}
 			})
 
-			// Next move the order in which they show up in the document
+			// Move the dropped card to the bottom of the queue
 			var cards = $("#cards_container").children();
 			var cnt = cards.length;
 			
@@ -130,13 +112,20 @@
 					cards[i + 1] = temp;
 				}				
 			}
-			$("#cards_container").children().remove(); // remove old items and replace
-         	$("#cards_container").append(cards).children().draggable({ revert: "invalid" });
+			
+			// Remove old list and add new	
+			$("#cards_container").children().remove();
+         	$("#cards_container").append(cards).children();
+         	
+         	// Bind relevant events to cards in queue and in drop area
+         	$(".undropped_card").draggable({ revert: "invalid" });
+         	console.log("test1");
          	$(".dropped_card").bind('dblclick',function(){
          		repossessCard($(this));
      		});
 			
-			// alert("w_r=" + w_rel + ", h_r=" + h_rel);
+			// Record the position of the card on the canvas
+			alert("w_r=" + w_rel + ", h_r=" + h_rel);
 		});
 	})
 	
@@ -145,12 +134,11 @@
 		// Create a new card with the form
 		$("#name_input").submit(function(){
 			var card = $('#new_card').val();
-			console.log('card name: ' + card);			
+			console.log('new card name: ' + card);
 
 			// Position the new card
-			var spacing = $(".draggable").outerHeight(true); // spcaing between cards in px
-			var n_undropped = $(".undropped_card").length;
-			console.log("n_undropped = " + n_undropped)
+			var spacing = $(".draggable").outerHeight(true); // spcaing between cards in px, same for all cards
+			console.log("n_undropped = " + $(".undropped_card").length)
 			
 			// Move all the cards down
 			$(".undropped_card").each(function(){
@@ -158,9 +146,12 @@
 				$(this).offset({ top: o_offset.top + spacing, left: o_offset.left})
 			})
 			
-			$('<div class="draggable ui-widget-content undropped_card">' + card + '</div>').prependTo($('#cards_container')).draggable({ revert: "invalid" });
-
 			$(this).find(':text').val(''); // reset form to avoid duplicates
+			
+			// Create new card and prepend to list
+			$('<div class="draggable ui-widget-content undropped_card">' + card + '</div>').prependTo($('#cards_container'))
+																							.draggable({ revert: "invalid" })
+																							.offset(getNewCardOffset());		
 		})
 	})
 	</script>
@@ -177,7 +168,7 @@
 </head>
 <body>
 	<div id="card_entry">
-		<h1>TEST PAGE</h1>
+		<h1>Create Cards</h1>
 		
 		<form id="name_input" action="javascript: var a=1;">
 			New card: <input type="text" id="new_card" name="newcardname" /><br />
