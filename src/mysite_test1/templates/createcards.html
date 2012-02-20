@@ -17,14 +17,22 @@
 	function updateDroppedCards(){
 		var session_id = $("#session_select :selected").val();
 		$.getJSON("/seventools/cardsession/json/", { id: session_id}, function(data) {
-					console.log('json card data retrieved');
-					var items = [];
-					var card;
-					$.each(data, function(key,val) {
-						card = val.fields;
-						console.log(card.name + ": " + card.x_coord + ", " + card.y_coord);
-					})
+				console.log('json card data retrieved');
+				var items = [];
+				var card;
+				var str = "<table><tr>";
+				str += "<th>Name</th><th>x coord</th><th>y coord</th>";
+				str += "</tr>";
+				$.each(data, function(key,val) {
+					card = val.fields;
+					console.log(card.name + ": " + card.x_coord + ", " + card.y_coord);
+					
+					str += "<tr><td>" + card.name + "</td><td>" + card.x_coord + "</td><td>" + card.y_coord + "</td></tr>";
+				})
+				str += "</table>";
+				$("#dropped_cards").html(str);
 	    });
+	    
 	}
 	
 	// Namespace protected functions
@@ -193,6 +201,10 @@
 	.draggable { width: 100px; height: 30px; padding: 0.5em; position:fixed; margin: 10px 10px 10px 10px; }
 	#droppable { width: 1000px; height: 500px; padding: 0.5em; float: left; margin: 10px 10px 10px 10px;
 		border: 1px solid black;
+		background-color:#ffffff;
+  		opacity:0.6;
+  		position:relative;
+  		z-index:100;
 	}
 	#card_entry { float: left; }
 	</style>
@@ -220,5 +232,6 @@
 		<br/>
 		<input type="submit" value="Update JSON"/>
 	</form>
+	<div id="dropped_cards"></div>
 	
 </body>
