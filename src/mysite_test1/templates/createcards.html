@@ -5,91 +5,60 @@
 	<script src="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/js/jquery-1.7.1.min.js" type='text/javascript'></script>	
 	<script src="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/js/jquery-ui-1.8.17.custom.min.js" type='text/javascript'></script>
 	<script>
+	// Define card sizes
+	var card_width = 100;
+	var card_height = 30;
+	var dropHEIGHT = 500;
+	var dropWIDTH = dropHEIGHT*2;
+	var cardSizeMulti = 0.5; // how much smaller are the cards on the svg
+	var cardRoundedFactor = .1;
+	var card_vis;
+	
 	// Definines the placement of queued cards
 	function getNewCardOffset(){
 		var newOffset = $("#cards_container").offset();
-		newOffset.top += 5; 
+		newOffset.top += 5;
 		newOffset.left += 10;
 		return newOffset;
 	}
 	
-	// Get all JSON data for current session
-	function updateDroppedCards(){
-		var session_id = $("#session_select :selected").val();
-		$.getJSON("/seventools/cardsession/json/", { id: session_id}, function(data) {
-				console.log('json card data retrieved');
-				var items = [];
-				var card;
-				var str = "<table><tr>";
-				str += "<th>Name</th><th>x coord</th><th>y coord</th>";
-				str += "</tr>";
-				$.each(data, function(key,val) {
-					card = val.fields;
-					console.log(card.name + ": " + card.x_coord + ", " + card.y_coord);
-					
-					str += "<tr><td>" + card.name + "</td><td>" + card.x_coord + "</td><td>" + card.y_coord + "</td></tr>";
-				})
-				str += "</table>";
-				$("#dropped_cards").html(str);
-	    });
-	    
+	/*
+	 * Resize functions are un-tested
+	 */
+	function resizeCards(p){
+		card_width = card_width*p;
+		card_height = card_height*p;
+		// draggable
+		$(".draggable").attr("width", card_width).attr("height", card_height);
+		update_cards ();
+	}
+	
+	function resizeDropArea(p){
+		dropHEIGHT = dropHEIGHT*p;
+		dropWIDTH = dropWIDTH*p;
+		// card_visualisation
+		$("#card_visualisation").attr("width", dropWIDTH).attr("height", dropHEIGHT);
+		update_cards ();
+	}
+	
+	// Get all JSON data for current session into table
+	function updateSessionTable(data){
+		// Use the data already collected for svg
+		// format: {id, x, y, name} as {id, value1, value2, value3}
+		var str = "<tr>";
+		str += "<th>Card Name</th><th>x coord</th><th>y coord</th>";
+		str += "</tr>";
+		$.each(data, function(key,val) {
+			// console.log(val.value3 + ": " + (val.value1) + ", " + (val.value2));
+			str += "<tr><td>" + val.value3 + "</td><td>" + (val.value1) + "</td><td>" + (val.value2)+ "</td></tr>";
+		})
+		$("#dropped_cards").html(str);
 	}
 	
 	// Namespace protected functions
 	$(function() {
 		// Initialize the drop area
 		$( "#droppable" ).droppable();	
-		// Move card from drop area back into queue
-		function repossessCard(card){
-			// Notify
-			console.log('Repossesing card');
-			console.log(card);
-			
-			// Position card
-			card.offset(getNewCardOffset());
-			
-			// Move absolute position of all undroped down
-			var spacing = card.outerHeight(true);
-			$(".undropped_card").each(function(index,domE){
-				// Define new position in terms of old position
-				var o_offset = $(domE).offset();
-				$(domE).offset({ top: o_offset.top + spacing, left: o_offset.left})
-			})
-			
-			// Add and remove classes
-			card.removeClass("dropped_card");
-			card.addClass("undropped_card");
-			
-			// Reorganize order in document
-			var cards = $("#cards_container").children();
-			var cnt = cards.length;
-			
-			// Get the index of the re-queued card
-			var newcard_index;
-			for( var i = cnt - 1; i >= 0; i--){
-				if($(cards[i]).hasClass("undropped_card")){
-					newcard_index = i;
-					break;
-				}
-			}
-			
-			// Reorder cards, moving the re-queued card to the top of the list
-			var temp = cards[newcard_index];
-			for( var i = newcard_index; i > 0; i--){
-				cards[i] = cards[i - 1];
-			}
-			cards[0] = temp;
-
-			// Remove old list and add new						
-			$("#cards_container").children().remove(); // remove old items and replace
-         	$("#cards_container").append(cards).children();
-         	
-         	// Bind relevant events to cards in queue and in drop area
-         	$(".undropped_card").draggable({ revert: "invalid" });
-         	$(".dropped_card").bind('dblclick',function(){
-         		repossessCard($(this));
-     		});			
-		};
 		
 		// Determine where it was clicked
 		$( "#droppable" ).bind( "dblclick", function(event) {
@@ -98,7 +67,24 @@
 			var h = $(this).height();
 			var w_rel = (event.pageX - toffset.left)/(w);
 			var h_rel = (event.pageY - toffset.top)/(h);
-			alert(w_rel +'%, '+ h_rel + '%');
+			//alert(w_rel +'%, '+ h_rel + '%');
+			
+			// send coords as well as size being used for card
+			var card_h = card_height/h;
+			var card_w = card_width/w;
+			var session_id = $("#session_select :selected").val();
+			console.log("Recalling card")
+     		$.getJSON("/seventools/cardsession/recallcard/", { height: card_h, width: card_w, x_coord: w_rel, y_coord: h_rel, session_id: session_id }, 
+     		function(data) {
+     			// refresh view
+     			console.log("Card recalled");     			console.log(data);
+     			console.log(data.deleted_name);
+     			if(data.deleted_name !== ""){
+	     			update_cards ();
+	     			addCardToQueue(data.deleted_name);
+     			}
+     		});
+     		console.log("Finished recalling card")
 		})
 		
 		// Move a card from the queue into the drop area
@@ -130,32 +116,7 @@
 					spacing += $(domE).outerHeight(true);
 				}
 			})
-
-			// Move the dropped card to the bottom of the queue
-			var cards = $("#cards_container").children();
-			var cnt = cards.length;
-			
-			var temp;
-			for (var i = 0; i < cnt-1; i++){
-				temp = cards[i];
-				if( $(temp).hasClass("dropped_card")){
-					// Move it to the bottom
-					cards[i] = cards[i + 1];
-					cards[i + 1] = temp;
-				}				
-			}
-			
-			// Remove old list and add new	
-			$("#cards_container").children().remove();
-         	$("#cards_container").append(cards).children();
-         	
-         	// Bind relevant events to cards in queue and in drop area
-         	$(".undropped_card").draggable({ revert: "invalid" });
-         	console.log("test1");
-         	$(".dropped_card").bind('dblclick',function(){
-         		repossessCard($(this));
-     		});
-     		
+    		
      		// Add card to database
  			console.log("adding card via xhr");
      		var card_name = ui.draggable.text();
@@ -163,37 +124,124 @@
      		$.get("/seventools/cardsession/addcard/", { name: card_name, session_id: session_id, x_coord: w_rel, y_coord: h_rel },
      		function(data){
      			console.log(data);
-     		} );
+     			
+     			// Wait for card to be added before updating
+				update_cards ();
+     		});
+     		
+			// Remove card from the queue
+			ui.draggable.remove();
 
 		});
 	})
+	
+	// Create a new card by passing the new name
+	function addCardToQueue(card){
+		console.log('new card name: ' + card);
+
+		// Position the new card
+		var spacing = $(".draggable").outerHeight(true); // spcaing between cards in px, same for all cards
+		console.log("n_undropped = " + $(".undropped_card").length)
+		
+		// Move all the cards down
+		$(".undropped_card").each(function(){
+			var o_offset = $(this).offset();
+			$(this).offset({ top: o_offset.top + spacing, left: o_offset.left})
+		})
+		
+		// Create new card and prepend to list
+		$('<div class="draggable ui-widget-content undropped_card">' + card + '</div>').prependTo($('#cards_container'))
+																						.draggable({ revert: "invalid" })
+																						.offset(getNewCardOffset());
+	}
 	
 	// Functions to call once when doc ready
 	$(document).ready(function(){
 		// Create a new card with the form
 		$("#name_input").submit(function(){
 			var card = $('#new_card').val();
-			console.log('new card name: ' + card);
-
-			// Position the new card
-			var spacing = $(".draggable").outerHeight(true); // spcaing between cards in px, same for all cards
-			console.log("n_undropped = " + $(".undropped_card").length)
-			
-			// Move all the cards down
-			$(".undropped_card").each(function(){
-				var o_offset = $(this).offset();
-				$(this).offset({ top: o_offset.top + spacing, left: o_offset.left})
-			})
-			
+			addCardToQueue(card);		
 			$(this).find(':text').val(''); // reset form to avoid duplicates
-			
-			// Create new card and prepend to list
-			$('<div class="draggable ui-widget-content undropped_card">' + card + '</div>').prependTo($('#cards_container'))
-																							.draggable({ revert: "invalid" })
-																							.offset(getNewCardOffset());		
 		})
+		$("#session_select :input").change(function(){
+			update_cards ();
+		})
+
+		// card_visualisation
+		card_vis = d3.select("#card_visualisation");
+		update_cards ();
 		
 	})
+	
+	// D3 functions
+	function update_cards () {
+		var all_card_data = cardPositionData();
+		var cards = card_vis.selectAll("rect")
+				.data(all_card_data)
+		cards
+			.enter()
+				.insert("svg:rect")
+					.attr("x", function (d) { return d.value1; })
+					.attr("y", function (d) { return d.value2; })
+					.style("fill", "green")
+					.style("stroke", "black")
+				.insert("svg:text")
+					.text(function (d) { return d.value3; })
+		
+		cards
+			.transition().duration(0)
+				.attr("x", function (d) { return d.value1; })
+				.attr("y", function (d) { return d.value2; })
+				.attr("rx", card_width*cardRoundedFactor)
+				.attr("ry", card_height*cardRoundedFactor)
+				.attr("width", card_width*cardSizeMulti)
+				.attr("height", card_height*cardSizeMulti)
+	
+		cards.exit ()
+			.transition().duration(1000)
+				.attr("width", 0)
+					.remove ();
+	
+		// Update the table every time this is called
+		updateSessionTable(all_card_data);
+	}
+	
+	// Card position data
+	function cardPositionData () {
+		// Intialize variables
+		var session_id = $("#session_select :selected").val();
+		var dataset = [];
+		
+		// Define function to run on completion
+		function getCardDataD3(data){	
+			var card;
+			$.each(data, function(key,val) {
+				card = val.fields;
+				var ncard = {
+					id: key,
+					value1: (card.x_coord * dropWIDTH),
+					value2: (card.y_coord * dropHEIGHT),
+					value3: card.name
+				}
+				dataset.push (ncard);
+			})
+		}
+		
+		// Collect data synchronously so it can be processed by D3 upon return
+		$.ajax({
+		    type: 'GET',
+		    url: "/seventools/cardsession/json/",
+		    dataType: 'json',
+		    success: function(data){getCardDataD3(data)},
+		    data: { id: session_id},
+		    async: false
+		});
+	
+		//console.log("Number of cards to be plotted: " + dataset.length);
+		//console.log(dataset);
+		return dataset;
+	}
+		
 	</script>
 	<!-- Styling -->
 	<LINK href="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/css/le-frog/jquery-ui-1.8.17.custom.css" rel="stylesheet" type="text/css">
@@ -207,6 +255,15 @@
   		z-index:100;
 	}
 	#card_entry { float: left; }
+	#dropped_cards th { border: 1px solid black;}
+	#dropped_cards td { border: 1px solid black;}
+	svg {
+		border: 1px solid #000;
+	}
+	#card_visualisation {
+		position:relative;
+		z-index:1;
+	}
 	</style>
 
 </head>
@@ -222,16 +279,18 @@
 		<div id="cards_container"></div>
 	</div>
 	
-	<div id="droppable"></div>
-	<form id = "session_select" action="javascript: updateDroppedCards();">
+	<div id="droppable">
+		<svg id="card_visualisation" width="1000" height="500"></svg>
+	</div>
+	<h2>Select Session</h2>
+	<form id = "session_select">
 		<select>
   		{% for session in sessions %}
 	  		<option value="{{ session.id }}">{{ session.name }}</option>
 		{% endfor %}
 		</select>
-		<br/>
-		<input type="submit" value="Update JSON"/>
 	</form>
-	<div id="dropped_cards"></div>
+	<table id="dropped_cards"></table>
+	<button onclick="update_cards()">Update SVG</button>
 	
 </body>

@@ -18,4 +18,4 @@ class Card(models.Model):
         return u'%s %s' % (self.name, self.global_id)
     
     class Meta:
-        ordering = ['global_id']
+        ordering = ['id']
