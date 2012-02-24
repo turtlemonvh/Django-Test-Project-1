@@ -1,56 +1,64 @@
+<html>
 <head>
 	<!-- Javascript -->
 	<script src="{{ STATIC_URL }}js/d3/d3.js" type='text/javascript'></script>
 	<script src="{{ STATIC_URL }}js/d3/d3.layout.js" type='text/javascript'> </script>
 	<script src="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/js/jquery-1.7.1.min.js" type='text/javascript'></script>	
 	<script src="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/js/jquery-ui-1.8.17.custom.min.js" type='text/javascript'></script>
+		<!-- Files to correct jQuery's handling of svg dom objects -->
+	<script src="{{ STATIC_URL }}js/jquery.svg/jquery.svg.js" type='text/javascript'></script>
+	<script src="{{ STATIC_URL }}js/jquery.svg/jquery.svgdom.js" type='text/javascript'></script>
 	<script>
 	// Define card sizes
 	var card_width = 100;
-	var card_height = 30;
+	var card_height = 60;
 	var dropHEIGHT = 500;
-	var dropWIDTH = dropHEIGHT*2;
-	var cardSizeMulti = 0.5; // how much smaller are the cards on the svg
-	var cardRoundedFactor = .1;
+	var dropWIDTH = dropHEIGHT * 2;
+	var cardSizeMulti = 0.8; // how much smaller are the cards on the svg
+	var cardRoundedFactor = 0.02;
 	var card_vis;
-	
+	var max_text_size = 40; // The longest name allowed for a card
+
 	// Definines the placement of queued cards
-	function getNewCardOffset(){
+	function getNewCardOffset() {
+		'use strict';
 		var newOffset = $("#cards_container").offset();
 		newOffset.top += 5;
 		newOffset.left += 10;
 		return newOffset;
 	}
-	
+
 	/*
 	 * Resize functions are un-tested
 	 */
-	function resizeCards(p){
-		card_width = card_width*p;
-		card_height = card_height*p;
+	function resizeCards(p) {
+		'use strict';
+		card_width = card_width * p;
+		card_height = card_height * p;
 		// draggable
 		$(".draggable").attr("width", card_width).attr("height", card_height);
-		update_cards ();
+		update_cards();
 	}
 	
-	function resizeDropArea(p){
+	function resizeDropArea(p) {
 		dropHEIGHT = dropHEIGHT*p;
 		dropWIDTH = dropWIDTH*p;
 		// card_visualisation
 		$("#card_visualisation").attr("width", dropWIDTH).attr("height", dropHEIGHT);
-		update_cards ();
+		update_cards();
 	}
 	
 	// Get all JSON data for current session into table
-	function updateSessionTable(data){
+	function updateSessionTable(data) {
 		// Use the data already collected for svg
 		// format: {id, x, y, name} as {id, value1, value2, value3}
 		var str = "<tr>";
-		str += "<th>Card Name</th><th>x coord</th><th>y coord</th>";
+		//str += "<th>Card Name</th><th>x coord</th><th>y coord</th>";
+		str += "<th>id</th><th>Card Name</th><th>x coord</th><th>y coord</th>";
 		str += "</tr>";
 		$.each(data, function(key,val) {
 			// console.log(val.value3 + ": " + (val.value1) + ", " + (val.value2));
-			str += "<tr><td>" + val.value3 + "</td><td>" + (val.value1) + "</td><td>" + (val.value2)+ "</td></tr>";
+			str += "<tr><td>" + val.id + "</td><td>" + val.value3 + "</td><td>" + (val.value1) + "</td><td>" + (val.value2)+ "</td></tr>";
 		})
 		$("#dropped_cards").html(str);
 	}
@@ -61,6 +69,7 @@
 		$( "#droppable" ).droppable();	
 		
 		// Determine where it was clicked
+		/**
 		$( "#droppable" ).bind( "dblclick", function(event) {
 			var toffset = $(this).offset();
 			var w = $(this).width();
@@ -86,6 +95,7 @@
      		});
      		console.log("Finished recalling card")
 		})
+		//**/
 		
 		// Move a card from the queue into the drop area
 		$( "#droppable" ).bind( "drop", function(event, ui) {
@@ -124,6 +134,9 @@
      		$.get("/seventools/cardsession/addcard/", { name: card_name, session_id: session_id, x_coord: w_rel, y_coord: h_rel },
      		function(data){
      			console.log(data);
+     			if(data !== "Card added"){
+     				alert(data);
+     			}     			
      			
      			// Wait for card to be added before updating
 				update_cards ();
@@ -150,7 +163,7 @@
 		})
 		
 		// Create new card and prepend to list
-		$('<div class="draggable ui-widget-content undropped_card">' + card + '</div>').prependTo($('#cards_container'))
+		$('<div class="draggable ui-widget-content undropped_card shadow">' + card + '</div>').prependTo($('#cards_container'))
 																						.draggable({ revert: "invalid" })
 																						.offset(getNewCardOffset());
 	}
@@ -167,44 +180,167 @@
 			update_cards ();
 		})
 
-		// card_visualisation
-		card_vis = d3.select("#card_visualisation");
-		update_cards ();
+		/* 
+		 * card_visualisation
+		 */
+		// variables
+		var w = 1000,
+			h = 500;
 		
+		// An svg element, top-lft origin
+		card_vis = d3.select("#droppable").append("svg") // this is an svg
+			.attr("width",w)
+			.attr("height",h)
+			.style("padding-right","30px")
+		
+		// Add a g element to contain the cards and allow relatove movement
+		body = card_vis.append("g")
+			.attr("transform", "translate(0,0)");
+		
+		/** Come back to this
+		var brush = d3.svg.brush()
+			.on("brushstart", brushstart)
+			.on("brush", brush)
+			.on("brushend", brushend);
+		//**/
+				
+		// Call the update function		
+		update_cards();
 	})
 	
-	// D3 functions
-	function update_cards () {
+	// Redraw cards
+	function update_cards() {
+		// Collect data
 		var all_card_data = cardPositionData();
-		var cards = card_vis.selectAll("rect")
-				.data(all_card_data)
-		cards
-			.enter()
-				.insert("svg:rect")
-					.attr("x", function (d) { return d.value1; })
-					.attr("y", function (d) { return d.value2; })
-					.style("fill", "green")
-					.style("stroke", "black")
-				.insert("svg:text")
-					.text(function (d) { return d.value3; })
 		
-		cards
-			.transition().duration(0)
-				.attr("x", function (d) { return d.value1; })
-				.attr("y", function (d) { return d.value2; })
-				.attr("rx", card_width*cardRoundedFactor)
-				.attr("ry", card_height*cardRoundedFactor)
-				.attr("width", card_width*cardSizeMulti)
-				.attr("height", card_height*cardSizeMulti)
+		// Add a container for each card
+		var card_disp = body.selectAll("g")
+		    .data(all_card_data, function(d) { return d.value3; }); // sort by output order from django data model
+		   
+		// Identify the entering nodes with their own variable
+	   	var card_disp_enter = card_disp.enter().append("g")
+	      	.attr("class","svg_card")
+			.attr("transform", function(d) { return "translate(" + d.value1 + "," + d.value2 + ")"; }) // transform to x and y for card
+			.attr("font-size",card_width*cardSizeMulti/9)
+			.on("click", svgCardClick)
+			.on("dblclick", function(d){ changeCardName(d.value3, this)})
 	
-		cards.exit ()
-			.transition().duration(1000)
-				.attr("width", 0)
-					.remove ();
-	
-		// Update the table every time this is called
+		// Add rectangle
+		card_disp_enter.append("rect")
+			.attr("x", 1)
+	      	.attr("y",1)
+			.attr("width", card_width*cardSizeMulti)
+			.attr("height", card_height*cardSizeMulti)
+			.attr("rx", card_width*cardRoundedFactor)
+			.attr("ry", card_height*cardRoundedFactor)	
+			.call(d3.behavior.drag()
+	            .on("drag", drag)
+	         );				
+			
+		
+		// Add and position text
+		// 3 text elements are used to wrap 3 lines
+		var nlines = 1;
+		card_disp_enter.append("text")
+			.attr("x", card_width*cardSizeMulti/2)
+			.attr("text-anchor", "middle")
+			.text(function (d) { text = splitString(d.value3, 12); nlines = text.length; return text[0]; })
+			.attr("y", card_height*cardSizeMulti/2 - 5*(nlines-1))
+		
+		// Subsequent text boxes can return array values that don't existi with no error
+		card_disp_enter.append("text")
+			.attr("x", card_width*cardSizeMulti/2)
+			.attr("text-anchor", "middle")
+			.text(function (d) { text = splitString(d.value3, 12); nlines = text.length; return text[1]; })
+			.attr("y", card_height*cardSizeMulti/2 + 15  - 5*(nlines-1))
+			
+		card_disp_enter.append("text")
+			.attr("x", card_width*cardSizeMulti/2)
+			.attr("text-anchor", "middle")
+			.text(function (d) { text = splitString(d.value3, 12); nlines = text.length; return text[2]; })			
+			.attr("y", card_height*cardSizeMulti/2 + 30 - 5*(nlines-1))
+			
+		// Transition and exit
+		card_disp.transition().duration(0)
+			.attr("transform", function(d) { return "translate(" + d.value1 + "," + d.value2 + ")"; }); // transform to x and y for card
+		
+		// Not getting red of old cards
+		card_disp.exit()
+			.transition().duration(500)
+			.attr("transform", function(d) { return "translate(" + -card_width*cardSizeMulti + "," + d.value2 + ")"; })
+				.remove ();
+		
+		// Update table display too
 		updateSessionTable(all_card_data);
 	}
+	
+	// Check if this has class
+	function svgCardClick () {
+		var test_class = 'clicked_svg_card';
+
+		if ($(this).hasClass(test_class)) {
+			// Split class data
+			console.log(this);
+			$(this).removeClass(test_class);
+			console.log(this);
+			console.log("Card de-selected");
+		} else {
+			console.log(this);
+			$(this).addClass(test_class);
+			console.log(this);
+			console.log("Card selected");
+		}		
+	}
+	
+	// Change the name of the card
+	function changeCardName(cname, ccard) {
+		// Change to provide validation; no empty name (no action taken)
+		var name = prompt("Please enter a new name",cname);
+		console.log("selection test #09876")
+		console.log(ccard);
+		console.log($(ccard).find("text"));
+		console.log($(ccard).find("text")[0]);
+		console.log($(ccard).find("text")[0].text);
+		if (name!=null && name!="")
+		{
+			// change name
+			text = splitString(name, 12);
+			nlines = text.length;
+			$($(ccard).find("text")[0]).text(text[0]);
+			$($(ccard).find("text")[1]).text(text[1]);
+			$($(ccard).find("text")[2]).text(text[2]);
+		} else {
+			// Nothing
+		}
+	}
+	
+	// Function to call on svg drag
+	// PROBLEM: only works when drag is started horizontal left
+	function drag(){
+		var test_class = 'clicked_svg_card';
+		if ($(this).parent().hasClass(test_class)) {
+	        console.log("drag");
+	        // Move rect
+	        var dragTarget = d3.select(this);
+	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))});
+			dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
+	        
+	        // Move text - NEED TO DO THIS BETTER
+	        dragTarget = d3.select($(this).parent().find("text")[0]);
+	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
+	        dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
+	        
+	        dragTarget = d3.select($(this).parent().find("text")[1]);
+	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
+	        dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
+	        
+	        dragTarget = d3.select($(this).parent().find("text")[2]);
+	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
+	        dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
+		} else {
+			console.log("not draggable without selecting first");
+		}
+    }	
 	
 	// Card position data
 	function cardPositionData () {
@@ -241,47 +377,109 @@
 		//console.log(dataset);
 		return dataset;
 	}
+	
+	// Split string into equal sized parts
+	// Maxlength denotes the # chars after which a new word should not be started
+	function splitString(s, maxlength){
+		// The length of the string
+		var s_array = new Array();
+		var total_length = s.split("").length;
+		if(total_length < maxlength){
+			s_array[0] = (s);
+			return s_array;
+		} else {
+			// return array
+			var c_string = "";
+			var c_length = 0;
+			var array_l = 0;
+			$(s.split(" ")).each(function(){
+				c_length += this.split("").length;
+				c_string += this + " ";
+				if(c_string.split("").length > maxlength){
+					s_array[array_l] = $.trim(c_string);
+					c_string = "";
+					c_length = 0;
+					array_l++;
+				}
+			})
+			if(c_string.split("").length > 0){
+				s_array[array_l] = c_string;				
+			}
+			return s_array;
+		}
+	}
 		
 	</script>
 	<!-- Styling -->
-	<LINK href="{{ STATIC_URL }}js/jquery-ui-1.8.17.custom/css/le-frog/jquery-ui-1.8.17.custom.css" rel="stylesheet" type="text/css">
 	<style>
-	.draggable { width: 100px; height: 30px; padding: 0.5em; position:fixed; margin: 10px 10px 10px 10px; }
-	#droppable { width: 1000px; height: 500px; padding: 0.5em; float: left; margin: 10px 10px 10px 10px;
+	.draggable { 
+		background-color: #F8F5E1; 
+		width: 100px; 
+		height: 60px; 
+		padding: 0.5em; 
+		position:fixed; 
+		margin: 10px 10px 10px 10px;
 		border: 1px solid black;
-		background-color:#ffffff;
-  		opacity:0.6;
+		z-index:100;
+	}
+	#droppable { padding: 0.5em; float: left; margin: 10px 10px 10px 10px;
+		border: 1px solid black;
   		position:relative;
-  		z-index:100;
+  		z-index:50;
 	}
 	#card_entry { float: left; }
 	#dropped_cards th { border: 1px solid black;}
 	#dropped_cards td { border: 1px solid black;}
 	svg {
 		border: 1px solid #000;
+		z-index:60;
 	}
 	#card_visualisation {
 		position:relative;
 		z-index:1;
+	}	
+	.shadow {
+	  -moz-box-shadow:    3px 3px 5px black;
+	  -webkit-box-shadow: 3px 3px 5px black;
+	  box-shadow:         3px 3px 5px black;
+	}
+	.draggable {
+		font-family: "Courier New", Courier, monospace;
+	}
+	.svg_card{
+		opacity:0.8;
+		font-family: "Courier New", Courier, monospace;
+	}
+	.svg_card rect {
+		fill: #F8F5E1;
+		stroke: black;
+	}
+	.clicked_svg_card rect {
+		fill: #FF0000;
+		opacity:0.6;
+	}
+	.selecting rect {
+	  fill-opacity: .2;
+	}
+	
+	.selecting rect.selected {
+	  stroke: #f00;
 	}
 	</style>
-
 </head>
 <body>
 	<div id="card_entry">
 		<h1>Create Cards</h1>
 		
 		<form id="name_input" action="javascript: var a=1;">
-			New card: <input type="text" id="new_card" name="newcardname" /><br />
+			New card: <input type="text" id="new_card" maxlength = "40" name="newcardname" /><br />
 			<input type="submit" value="Submit" />
 		</form>
 		
 		<div id="cards_container"></div>
 	</div>
 	
-	<div id="droppable">
-		<svg id="card_visualisation" width="1000" height="500"></svg>
-	</div>
+	<div id="droppable"></div>
 	<h2>Select Session</h2>
 	<form id = "session_select">
 		<select>
@@ -294,3 +492,5 @@
 	<button onclick="update_cards()">Update SVG</button>
 	
 </body>
+	
+</html>

@@ -4,6 +4,7 @@ from django.http import Http404, HttpResponse
 from mysite_test1.seventools.models import CardSession, Card
 from django.core import serializers
 from django.utils import simplejson
+from string import strip
 
 # Card creation page
 def createcards(request):
@@ -32,12 +33,20 @@ def session_cards_JSON(request):
 def add_card(request):
     # int(float(request.GET['session_id']))
     if (request.is_ajax() and request.method == 'GET'):
+        sname = strip(request.GET['name']);
         session_obj = CardSession.objects.filter(id=int(float(request.GET['session_id'])));
-        newCard = Card(name = request.GET['name'],
+
+        # test to make sure this global id isn't occupied
+        global_id = "000-" + request.GET['session_id'] + "-" + sname
+        if( Card.objects.filter(global_id=global_id).count() > 0):
+            message = "Card not added.  Duplicate found."
+            return HttpResponse(message)
+        
+        newCard = Card(name = sname,
                     session=session_obj[0],
                     x_coord=request.GET['x_coord'], 
                     y_coord=request.GET['y_coord'],
-                    global_id="000-" + request.GET['session_id'] + "-" + request.GET['name'])
+                    global_id=global_id)
         newCard.save();
         message = "Card added"
     else:
