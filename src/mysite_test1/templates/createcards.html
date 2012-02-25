@@ -316,6 +316,7 @@
 	
 	// Function to call on svg drag
 	// PROBLEM: only works when drag is started horizontal left
+	// CAN WE ADD TO SELECTION?
 	function drag(){
 		var test_class = 'clicked_svg_card';
 		if ($(this).parent().hasClass(test_class)) {
@@ -325,18 +326,14 @@
 	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))});
 			dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
 	        
-	        // Move text - NEED TO DO THIS BETTER
-	        dragTarget = d3.select($(this).parent().find("text")[0]);
-	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
-	        dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
-	        
-	        dragTarget = d3.select($(this).parent().find("text")[1]);
-	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
-	        dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
-	        
-	        dragTarget = d3.select($(this).parent().find("text")[2]);
-	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
-	        dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
+	        // Move text
+	        dragTarget = d3.selectAll($(this).parent().find("text").get());
+
+	        // Fix this so the text position changes for each separately
+	        // Probably need to get data from each element separately
+	        dragTarget
+	        	.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
+	        	.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
 		} else {
 			console.log("not draggable without selecting first");
 		}
