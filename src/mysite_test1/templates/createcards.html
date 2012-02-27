@@ -40,14 +40,6 @@
 		update_cards();
 	}
 	
-	function resizeDropArea(p) {
-		dropHEIGHT = dropHEIGHT*p;
-		dropWIDTH = dropWIDTH*p;
-		// card_visualisation
-		$("#card_visualisation").attr("width", dropWIDTH).attr("height", dropHEIGHT);
-		update_cards();
-	}
-	
 	// Get all JSON data for current session into table
 	function updateSessionTable(data) {
 		// Use the data already collected for svg
@@ -96,6 +88,11 @@
      		console.log("Finished recalling card")
 		})
 		//**/
+		
+		$( "svg" ).bind( "click", function(event) {
+			console.log("Unselect all clicked cards");
+			$(".clicked_svg_card").removeClass("clicked_svg_card");
+		})
 		
 		// Move a card from the queue into the drop area
 		$( "#droppable" ).bind( "drop", function(event, ui) {
@@ -323,17 +320,15 @@
 	        console.log("drag");
 	        // Move rect
 	        var dragTarget = d3.select(this);
-	        dragTarget.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))});
-			dragTarget.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
+	        dragTarget
+	        	.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
+				.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
 	        
 	        // Move text
 	        dragTarget = d3.selectAll($(this).parent().find("text").get());
-
-	        // Fix this so the text position changes for each separately
-	        // Probably need to get data from each element separately
 	        dragTarget
-	        	.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
-	        	.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
+	        	.attr("x", function(){return d3.event.dx + parseInt($(this).attr("x"))})
+	        	.attr("y", function(){return d3.event.dy + parseInt($(this).attr("y"))});
 		} else {
 			console.log("not draggable without selecting first");
 		}
