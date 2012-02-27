@@ -10,47 +10,25 @@
 	<script src="{{ STATIC_URL }}js/jquery.svg/jquery.svgdom.js" type='text/javascript'></script>
 	<script>
 	// Define card sizes
-	var card_width = 100;
-	var card_height = 60;
+	var card_width = 10;
+	var card_height = 6;
 	var dropHEIGHT = 500;
 	var dropWIDTH = dropHEIGHT * 2;
-	var cardSizeMulti = 0.8; // how much smaller are the cards on the svg
+	var cardSizeMulti = 8; // how much smaller are the cards on the svg
 	var cardRoundedFactor = 0.02;
 	var card_vis;
 	var max_text_size = 40; // The longest name allowed for a card
 
-	// Definines the placement of queued cards
-	function getNewCardOffset() {
-		'use strict';
-		var newOffset = $("#cards_container").offset();
-		newOffset.top += 5;
-		newOffset.left += 10;
-		return newOffset;
-	}
-
-	/*
-	 * Resize functions are un-tested
-	 */
-	function resizeCards(p) {
-		'use strict';
-		card_width = card_width * p;
-		card_height = card_height * p;
-		// draggable
-		$(".draggable").attr("width", card_width).attr("height", card_height);
-		update_cards();
-	}
-	
 	// Get all JSON data for current session into table
 	function updateSessionTable(data) {
 		// Use the data already collected for svg
-		// format: {id, x, y, name} as {id, value1, value2, value3}
+		// format: {id, x, y, name} as {id, x, y, name}
 		var str = "<tr>";
 		//str += "<th>Card Name</th><th>x coord</th><th>y coord</th>";
 		str += "<th>id</th><th>Card Name</th><th>x coord</th><th>y coord</th>";
 		str += "</tr>";
 		$.each(data, function(key,val) {
-			// console.log(val.value3 + ": " + (val.value1) + ", " + (val.value2));
-			str += "<tr><td>" + val.id + "</td><td>" + val.value3 + "</td><td>" + (val.value1) + "</td><td>" + (val.value2)+ "</td></tr>";
+			str += "<tr><td>" + val.id + "</td><td>" + val.name + "</td><td>" + (val.x) + "</td><td>" + (val.y)+ "</td></tr>";
 		})
 		$("#dropped_cards").html(str);
 	}
@@ -89,11 +67,6 @@
 		})
 		//**/
 		
-		$( "svg" ).bind( "click", function(event) {
-			console.log("Unselect all clicked cards");
-			$(".clicked_svg_card").removeClass("clicked_svg_card");
-		})
-		
 		// Move a card from the queue into the drop area
 		$( "#droppable" ).bind( "drop", function(event, ui) {
 
@@ -105,43 +78,25 @@
 			var h = $(this).height();
 			var w_rel = (ui.draggable.offset().left - toffset.left)/(w);
 			var h_rel = (ui.draggable.offset().top - toffset.top)/(h);
-			
-			// Add and remove relevant classes
-			ui.draggable.removeClass("undropped_card");
-			ui.draggable.addClass("dropped_card");
-			
-			// Move the card positions to fill gap left by dropped card
-			var spacing = 0;
-			$("#cards_container").children().each( function(index, domE){				
-				if( $(domE).hasClass("undropped_card")){
-					// Move each card down to fill space left by dropped card
-					var o_offset = $(domE).offset();
-					var ntop = o_offset.top - spacing;
-					$(domE).offset({ top: ntop, left: o_offset.left})
-				} else {
-					// Track space left by dropped card
-					spacing += $(domE).outerHeight(true);
-				}
-			})
     		
      		// Add card to database
  			console.log("adding card via xhr");
-     		var card_name = ui.draggable.text();
+     		var card_name = ui.draggable.parents("tr").find("textarea").val();
+     		
      		var session_id = $("#session_select :selected").val();
      		$.get("/seventools/cardsession/addcard/", { name: card_name, session_id: session_id, x_coord: w_rel, y_coord: h_rel },
      		function(data){
      			console.log(data);
      			if(data !== "Card added"){
-     				alert(data);
-     			}     			
-     			
+					alert(data);
+     			}
+
+				// Remove card from the queue
+				ui.draggable.parents("tr").remove();
+				
      			// Wait for card to be added before updating
 				update_cards ();
      		});
-     		
-			// Remove card from the queue
-			ui.draggable.remove();
-
 		});
 	})
 	
@@ -151,7 +106,6 @@
 
 		// Position the new card
 		var spacing = $(".draggable").outerHeight(true); // spcaing between cards in px, same for all cards
-		console.log("n_undropped = " + $(".undropped_card").length)
 		
 		// Move all the cards down
 		$(".undropped_card").each(function(){
@@ -159,10 +113,16 @@
 			$(this).offset({ top: o_offset.top + spacing, left: o_offset.left})
 		})
 		
-		// Create new card and prepend to list
-		$('<div class="draggable ui-widget-content undropped_card shadow">' + card + '</div>').prependTo($('#cards_container'))
-																						.draggable({ revert: "invalid" })
-																						.offset(getNewCardOffset());
+		// Create new card and prepend to list		
+		var ncard = '<tr><td><textarea>' + card + '</textarea></td><td><div class="draggable ui-widget-content undropped_card shadow"></div></td></tr>';
+		var added = $(ncard).prependTo($('#cards_container'));
+		added.find("div").draggable({ revert: "invalid" });
+		
+		// Realign
+		// This doesn't seem to be working here like it does in the command line
+		$('#cards_container div').each(function(k,v){v.style.top = 0});
+												
+		console.log("n_undropped = " + $(".undropped_card").length)
 	}
 	
 	// Functions to call once when doc ready
@@ -176,6 +136,11 @@
 		$("#session_select :input").change(function(){
 			update_cards ();
 		})
+		
+		$('textarea').change(function() {
+		  alert('Text changed.');
+		});
+		
 
 		/* 
 		 * card_visualisation
@@ -188,6 +153,7 @@
 		card_vis = d3.select("#droppable").append("svg") // this is an svg
 			.attr("width",w)
 			.attr("height",h)
+			.attr("class","card_visualisation")
 			.style("padding-right","30px")
 		
 		// Add a g element to contain the cards and allow relatove movement
@@ -200,7 +166,7 @@
 			.on("brush", brush)
 			.on("brushend", brushend);
 		//**/
-				
+		
 		// Call the update function		
 		update_cards();
 	})
@@ -212,16 +178,19 @@
 		
 		// Add a container for each card
 		var card_disp = body.selectAll("g")
-		    .data(all_card_data, function(d) { return d.value3; }); // sort by output order from django data model
+		    .data(all_card_data, function(d) { return d.name; }); // sort by output order from django data model
 		   
 		// Identify the entering nodes with their own variable
 	   	var card_disp_enter = card_disp.enter().append("g")
 	      	.attr("class","svg_card")
-			.attr("transform", function(d) { return "translate(" + d.value1 + "," + d.value2 + ")"; }) // transform to x and y for card
+			.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; }) // transform to x and y for card
 			.attr("font-size",card_width*cardSizeMulti/9)
-			.on("click", svgCardClick)
-			.on("dblclick", function(d){ changeCardName(d.value3, this)})
-	
+			.on("click", selectSvgCard)
+			.on("dblclick", function(d){ changeCardName(d.name, this)})
+			.call(d3.behavior.drag()
+	            .on("drag", drag)
+	         )
+
 		// Add rectangle
 		card_disp_enter.append("rect")
 			.attr("x", 1)
@@ -229,42 +198,41 @@
 			.attr("width", card_width*cardSizeMulti)
 			.attr("height", card_height*cardSizeMulti)
 			.attr("rx", card_width*cardRoundedFactor)
-			.attr("ry", card_height*cardRoundedFactor)	
-			.call(d3.behavior.drag()
-	            .on("drag", drag)
-	         );				
-			
-		
+			.attr("ry", card_height*cardRoundedFactor)
+
 		// Add and position text
 		// 3 text elements are used to wrap 3 lines
 		var nlines = 1;
+		var cardMiddleWidth = card_width*cardSizeMulti/2;
+		var cardMiddleHeight = card_height*cardSizeMulti/2;
+		var line_spacing = 10;
 		card_disp_enter.append("text")
-			.attr("x", card_width*cardSizeMulti/2)
+			.attr("x", cardMiddleWidth)
 			.attr("text-anchor", "middle")
-			.text(function (d) { text = splitString(d.value3, 12); nlines = text.length; return text[0]; })
-			.attr("y", card_height*cardSizeMulti/2 - 5*(nlines-1))
+			.text(function (d) { text = splitString(d.name, 12); nlines = text.length; return text[0]; })
+			.attr("y", cardMiddleHeight - line_spacing/2*(nlines-1))
 		
 		// Subsequent text boxes can return array values that don't existi with no error
 		card_disp_enter.append("text")
-			.attr("x", card_width*cardSizeMulti/2)
+			.attr("x", cardMiddleWidth)
 			.attr("text-anchor", "middle")
-			.text(function (d) { text = splitString(d.value3, 12); nlines = text.length; return text[1]; })
-			.attr("y", card_height*cardSizeMulti/2 + 15  - 5*(nlines-1))
+			.text(function (d) { text = splitString(d.name, 12); nlines = text.length; return text[1]; })
+			.attr("y", cardMiddleHeight + line_spacing  - line_spacing/2*(nlines-1))
 			
 		card_disp_enter.append("text")
-			.attr("x", card_width*cardSizeMulti/2)
+			.attr("x", cardMiddleWidth)
 			.attr("text-anchor", "middle")
-			.text(function (d) { text = splitString(d.value3, 12); nlines = text.length; return text[2]; })			
-			.attr("y", card_height*cardSizeMulti/2 + 30 - 5*(nlines-1))
+			.text(function (d) { text = splitString(d.name, 12); nlines = text.length; return text[2]; })			
+			.attr("y", cardMiddleHeight + 2*line_spacing - line_spacing/2*(nlines-1))
 			
 		// Transition and exit
 		card_disp.transition().duration(0)
-			.attr("transform", function(d) { return "translate(" + d.value1 + "," + d.value2 + ")"; }); // transform to x and y for card
+			.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; }); // transform to x and y for card
 		
 		// Not getting red of old cards
 		card_disp.exit()
 			.transition().duration(500)
-			.attr("transform", function(d) { return "translate(" + -card_width*cardSizeMulti + "," + d.value2 + ")"; })
+			.attr("transform", function(d) { return "translate(" + -card_width*cardSizeMulti + "," + d.y + ")"; })
 				.remove ();
 		
 		// Update table display too
@@ -272,7 +240,7 @@
 	}
 	
 	// Check if this has class
-	function svgCardClick () {
+	function selectSvgCard () {
 		var test_class = 'clicked_svg_card';
 
 		if ($(this).hasClass(test_class)) {
@@ -286,18 +254,38 @@
 			$(this).addClass(test_class);
 			console.log(this);
 			console.log("Card selected");
-		}		
+		}
 	}
+	
+	// Save all cards to server
+	function saveCardsToDB() {
+		// Print out all card info
+		var allCards = $(".svg_card");
+		var allCardsArray = new Array(allCards.length);
+		var nextCard = new Object();
+		allCards.each(function(k,v){
+			nextCard.id = v.__data__.id;
+			nextCard.name = v.__data__.name;
+			nextCard.x = v.__data__.x;
+			nextCard.y = v.__data__.y;
+						
+			allCardsArray[k] = nextCard;
+		})
+		console.log(allCardsArray);
+		
+		// POST all card data
+		// Not working yet
+		// http://ask.metafilter.com/154077/How-do-I-read-a-JSON-object-in-Python
+		// Work to integrate this with backbone.js instead
+		$.post("/seventools/cardsession/saveallcards/", { "cards[]": allCardsArray }, function(data) {
+			alert(data);
+		})
+	}	
 	
 	// Change the name of the card
 	function changeCardName(cname, ccard) {
 		// Change to provide validation; no empty name (no action taken)
 		var name = prompt("Please enter a new name",cname);
-		console.log("selection test #09876")
-		console.log(ccard);
-		console.log($(ccard).find("text"));
-		console.log($(ccard).find("text")[0]);
-		console.log($(ccard).find("text")[0].text);
 		if (name!=null && name!="")
 		{
 			// change name
@@ -306,33 +294,39 @@
 			$($(ccard).find("text")[0]).text(text[0]);
 			$($(ccard).find("text")[1]).text(text[1]);
 			$($(ccard).find("text")[2]).text(text[2]);
+			console.log("Card name changed");
 		} else {
 			// Nothing
+			console.log("Card name not changed");
 		}
 	}
 	
 	// Function to call on svg drag
-	// PROBLEM: only works when drag is started horizontal left
-	// CAN WE ADD TO SELECTION?
-	function drag(){
+	// change to drag regardless of class, but all move
+	// check position at end
+	// https://github.com/mbostock/d3/wiki/Drag-Behavior#wiki-on
+	function drag(d,i){
 		var test_class = 'clicked_svg_card';
-		if ($(this).parent().hasClass(test_class)) {
-	        console.log("drag");
-	        // Move rect
-	        var dragTarget = d3.select(this);
-	        dragTarget
-	        	.attr("x", function(){return d3.event.dx + parseInt(dragTarget.attr("x"))})
-				.attr("y", function(){return d3.event.dy + parseInt(dragTarget.attr("y"))});
-	        
-	        // Move text
-	        dragTarget = d3.selectAll($(this).parent().find("text").get());
-	        dragTarget
-	        	.attr("x", function(){return d3.event.dx + parseInt($(this).attr("x"))})
-	        	.attr("y", function(){return d3.event.dy + parseInt($(this).attr("y"))});
-		} else {
-			console.log("not draggable without selecting first");
+		$(this).addClass(test_class);
+		
+		// Adjust data
+		d.x += d3.event.dx;
+		d.y += d3.event.dy;
+		
+		// Check to see if its gone off the page
+		// Change to make drag to right a pure delete
+		// To remove, update data model then refresh d3
+		if( d.x < 0 || d.y < 0) {
+			console.log("off to left or top");
+			addCardToQueue(d.name);
+		} else if ( d.x > dropWIDTH || d.y > dropHEIGHT) {
+			console.log("off to bottom or right");
+			addCardToQueue(d.name);
 		}
-    }	
+		
+		// Move it
+		d3.select(this).attr("transform", "translate(" + d.x + "," + d.y + ")");
+    }
 	
 	// Card position data
 	function cardPositionData () {
@@ -347,15 +341,16 @@
 				card = val.fields;
 				var ncard = {
 					id: key,
-					value1: (card.x_coord * dropWIDTH),
-					value2: (card.y_coord * dropHEIGHT),
-					value3: card.name
+					x: (card.x_coord * dropWIDTH),
+					y: (card.y_coord * dropHEIGHT),
+					name: card.name
 				}
 				dataset.push (ncard);
 			})
 		}
 		
 		// Collect data synchronously so it can be processed by D3 upon return
+		// Try to rethink this so sync calls are not necessary
 		$.ajax({
 		    type: 'GET',
 		    url: "/seventools/cardsession/json/",
@@ -406,27 +401,35 @@
 	<style>
 	.draggable { 
 		background-color: #F8F5E1; 
-		width: 100px; 
-		height: 60px; 
-		padding: 0.5em; 
-		position:fixed; 
+		width: 10px; 
+		height: 6px; 
+		padding: 0.5em;
 		margin: 10px 10px 10px 10px;
 		border: 1px solid black;
 		z-index:100;
 	}
-	#droppable { padding: 0.5em; float: left; margin: 10px 10px 10px 10px;
+	#droppable {
+		padding: 0.5em;
+		float: left;
+		margin: 10px 10px 10px 10px;
 		border: 1px solid black;
   		position:relative;
   		z-index:50;
 	}
 	#card_entry { float: left; }
-	#dropped_cards th { border: 1px solid black;}
-	#dropped_cards td { border: 1px solid black;}
+	table th { border: 1px solid black;}
+	table td { border: 1px solid black;}
+	#cards_container tr {
+		border: 1px solid black;
+	}
+	#cards_container textarea {
+		resize: none;
+	}
 	svg {
 		border: 1px solid #000;
 		z-index:60;
 	}
-	#card_visualisation {
+	.card_visualisation {
 		position:relative;
 		z-index:1;
 	}	
@@ -468,7 +471,7 @@
 			<input type="submit" value="Submit" />
 		</form>
 		
-		<div id="cards_container"></div>
+		<table id="cards_container"></table>
 	</div>
 	
 	<div id="droppable"></div>
@@ -480,6 +483,7 @@
 		{% endfor %}
 		</select>
 	</form>
+	<button onclick="saveCardsToDB()">Save Cards to Database</button>
 	<table id="dropped_cards"></table>
 	<button onclick="update_cards()">Update SVG</button>
 	

@@ -79,7 +79,24 @@ def recall_card(request):
     data = {'deleted_name': deleted_name}
     return HttpResponse(simplejson.dumps(data), mimetype='application/javascript')
 
+def saveallcards(request):
+    if (request.is_ajax() and request.method == 'POST'):
+        allcards = request.POST['cards'];
+        
+        # Print out info for now
+        for card in allcards:
+            print card
+            print card.name
 
+        message = "Cards added"
+    else:
+        message = "Invalid access method"
+    return HttpResponse(message)
+
+def todo(request):
+    return render_to_response('todo.html',
+                              {"test": 1},
+                              context_instance=RequestContext(request)) # must include context instance to get STATIC_FILES to work
 
 
 

@@ -41,4 +41,6 @@ urlpatterns += patterns('mysite_test1.seventools.views',
     (r'^seventools/cardsession/json/$', 'session_cards_JSON'),
     (r'^seventools/cardsession/addcard/$', 'add_card'),
     (r'^seventools/cardsession/recallcard/$', 'recall_card'),
+    (r'^seventools/cardsession/saveallcards/$', 'saveallcards'),
+    (r'^seventools/todo/$', 'todo'),
 )
