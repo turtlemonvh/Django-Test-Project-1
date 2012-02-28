@@ -6,7 +6,11 @@ from django.core import serializers
 from django.utils import simplejson
 from string import strip
 
-# Card creation page
+"""
+
+Card creation view
+
+"""
 def createcards(request):
     sessions = CardSession.objects.all() # can iterate over and get name and id
     sessionsm = []    
@@ -19,7 +23,33 @@ def createcards(request):
                               {"sessions": sessionsm},
                               context_instance=RequestContext(request)) # must include context instance to get STATIC_FILES to work
 
-# Ajax method to get cards based on the session
+"""
+
+Ajax method to create a new session.  Returns session id.
+
+UNTESTED, BUT PROBABLY WORKS.
+
+"""
+def create_session(request):
+    if (request.is_ajax() and request.method == 'GET'):
+        sname = strip(request.GET['name']);
+        
+        # Create a session object and save
+        session_obj = CardSession(name = sname)
+        session_obj.save()
+        
+        # Return the id
+        message = str(session_obj.id)
+    else:
+        # Return -1 as a flag that adding the card failed
+        message = "-1"
+    return HttpResponse(message)
+
+"""
+
+Ajax method to get cards based on the session
+
+"""
 def session_cards_JSON(request):
     if (request.is_ajax() and request.method == 'GET'):
         session_id = request.GET['id'] # get the sessioon id
@@ -29,7 +59,11 @@ def session_cards_JSON(request):
         message = "Invalid access method"
     return HttpResponse(message)
 
-# Ajax method to add card
+"""
+
+AJAX method to add a single card to an existing session.
+
+"""
 def add_card(request):
     # int(float(request.GET['session_id']))
     if (request.is_ajax() and request.method == 'GET'):
@@ -53,7 +87,11 @@ def add_card(request):
         message = "Invalid access method"
     return HttpResponse(message)
 
-# Ajax method to add card
+"""
+
+AJAX method to remove a single card from an existing session.
+
+"""
 def recall_card(request):
     # height: card_h, width: card_w, x_coord: w_rel, y_coord: h_rel, session_id: session_id
     session = CardSession.objects.get(id=int(float(request.GET['session_id'])))
@@ -79,33 +117,56 @@ def recall_card(request):
     data = {'deleted_name': deleted_name}
     return HttpResponse(simplejson.dumps(data), mimetype='application/javascript')
 
+"""
+
+Function used to keep card sessions updated with client side views.
+
+Receives POST data via AJAX for an existing session.  Deletes all existing cards for that session and replaces with sent data.
+
+"""
 def saveallcards(request):
     if (request.is_ajax() and request.method == 'POST'):
-        allcards = request.POST['cards'];
+        # Load data
+        json_data = simplejson.loads(request.raw_post_data)
         
+        # Collect session information
+        session = int(float(json_data["session"]))
+        session_obj = CardSession.objects.get(id=int(float(session)))
+        
+        # Delete all cards for this session
+        ccards = Card.objects.filter(session=session)
+        for card in ccards:
+            card.delete()
+            
         # Print out info for now
-        for card in allcards:
-            print card
-            print card.name
-
-        message = "Cards added"
+        cards = json_data["cards"]
+        for k, v in cards.iteritems():
+            print "x= %s, y=%s, name= %s" % (v["x"], v["y"], v["name"])
+            name = strip(v["name"])
+            x = float(v["x"])
+            y = float(v["y"])
+            global_id = "000-" + str(session) + "-" + name
+            
+            # Create and save new card
+            newCard = Card(name = name,
+                    session=session_obj,
+                    x_coord=x,
+                    y_coord=y,
+                    global_id=global_id)
+            
+            newCard.save();
+            
+        message = "Cards updated"
     else:
         message = "Invalid access method"
     return HttpResponse(message)
 
+"""
+
+Sample backbone.js application.
+
+"""
 def todo(request):
     return render_to_response('todo.html',
                               {"test": 1},
                               context_instance=RequestContext(request)) # must include context instance to get STATIC_FILES to work
-
-
-
-# display page
-# pass in sessions so they can choose one
-# need session id for each
-
-# Page for adding a session via ajax
-#def addSession(request):
-    
-
-# page for adding a card to a session
