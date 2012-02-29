@@ -1,0 +1,66 @@
+/*
+ * Display styling for card creation stage
+ * 
+ */
+
+.draggable { 
+	background-color: #F8F5E1; 
+	width: 10px; 
+	height: 6px; 
+	padding: 0.5em;
+	margin: 10px 10px 10px 10px;
+	border: 1px solid black;
+	z-index:100;
+}
+#droppable {
+	padding: 0.5em;
+	float: left;
+	margin: 10px 10px 10px 10px;
+	border: 1px solid black;
+	position:relative;
+	z-index:50;
+}
+#card_entry { float: left; }
+table th { border: 1px solid black;}
+table td { border: 1px solid black;}
+#cards_container tr {
+	border: 1px solid black;
+}
+#cards_container textarea {
+	resize: none;
+}
+svg {
+	border: 1px solid #000;
+	z-index:60;
+}
+.card_visualisation {
+	position:relative;
+	z-index:1;
+}	
+.shadow {
+  -moz-box-shadow:    3px 3px 5px black;
+  -webkit-box-shadow: 3px 3px 5px black;
+  box-shadow:         3px 3px 5px black;
+}
+.draggable {
+	font-family: "Courier New", Courier, monospace;
+}
+.svg_card{
+	opacity:0.8;
+	font-family: "Courier New", Courier, monospace;
+}
+.svg_card rect {
+	fill: #F8F5E1;
+	stroke: black;
+}
+.clicked_svg_card rect {
+	fill: #FF0000;
+	opacity:0.6;
+}
+.selecting rect {
+  fill-opacity: .2;
+}
+
+.selecting rect.selected {
+  stroke: #f00;
+}

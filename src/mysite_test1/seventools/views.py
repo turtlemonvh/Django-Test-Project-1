@@ -1,6 +1,6 @@
 from django.shortcuts import render_to_response
 from django.template import Context, RequestContext
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, HttpResponseServerError
 from mysite_test1.seventools.models import CardSession, Card
 from django.core import serializers
 from django.utils import simplejson
@@ -130,7 +130,11 @@ def saveallcards(request):
         json_data = simplejson.loads(request.raw_post_data)
         
         # Collect session information
-        session = int(float(json_data["session"]))
+        try:
+            session = int(float(json_data["session"]))
+        except KeyError:
+            HttpResponseServerError("Malformed JSON data!")
+
         session_obj = CardSession.objects.get(id=int(float(session)))
         
         # Delete all cards for this session
