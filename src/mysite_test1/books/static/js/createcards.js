@@ -2,6 +2,9 @@
  * 
  * Avoided using backbone because d3 makes using this annoying.  Data is owned by d3, so it isn't directly tied to a dom model.
  * 
+ * USE:
+ * - Load on $(document).ready using "cardsession.startapp();"
+ * 
  * SPECS:
  * - certain actions will call a re-draw of d3
  * - data from svg should be in sync with a model for the page
@@ -9,27 +12,38 @@
  * 
  * 
  * REFACTOR
- * - put constants in CONFIG wrapper
  * - link D3 data and current_session
+ * 		- provide callbacks on remove, enter, and change functions in d3
+ * 		- d3 needs and acts on an array
+ * 		- I need an object
+ * 			- how to make these work together so d3 directly changes datamodel
+ * 			- maybe keep d3 data in a separate container and sync these??
+ * - check for uniqueness when adding a new card
+ * - provide option to save changes when:
+ * 		- leaving page
+ * 		- changing session via drop down box
+ * - make sure only 2 methods contact server
+ * 		- dump of cardsession to server
+ * 		- pulling cardsession into view
  * 
- * 
+ * BUGS
+ * - when multiples are dropped, cards are shown moving to the right but stay where they are
+ * - when dropping, a jQuery error is thrown
  * 
  */
-
-// Load the application once the DOM is ready, using `jQuery.ready`:
-
 var cardsession = function(){
 
 	// Define Constants
-	//------------------
-	var card_width = 10;
-	var card_height = 6;
-	var dropHEIGHT = 500;
-	var dropWIDTH = dropHEIGHT * 2;
-	var cardSizeMulti = 8; // how much smaller are the cards on the svg
-	var cardRoundedFactor = 0.02;
-	var card_vis;
-	var max_text_size = 40;
+	//------------------	
+	var config = {
+		card_width: 10,
+		card_height: 6,
+		dropHEIGHT: 500,
+		dropWIDTH: 1000,
+		cardSizeMulti: 8, // how much smaller are the cards on the svg
+		cardRoundedFactor: 0.02,
+		max_text_size: 40
+	}
 	
 	// Data store for current session
 	// Initialize with session_id of 0 and change on initialize()
@@ -57,28 +71,29 @@ var cardsession = function(){
 	}
   
 	// Card Session Model
-	// ------------------
-	
-	/*
-	 * Add function to draw with d3
-	 * 
-	 */
-	
+	// ------------------	
 	function CardSession(id) {
 		// Variables
 		var session = id;
 		var Cards = {};
 		
-		// Functions
+		/*
+		 * Functions
+		 */ 
 		this.getSession = getSession;
 		this.numCards = numCards;
-		this.addCard = addCard;
 		this.getCards = getCards;
-		this.deleteCard = deleteCard;		
-		this.initialize = initialize;
-		this.sync = syncWithD3;
+
+		// Functions acting on a card at a time
+		this.addCard = addCard;		
+		this.deleteCard = deleteCard;
+		this.setCoords = setCoords;
+		
+		// Housekeeping
+		this.initialize = initialize; // overwrites current object with data from server
+		this.sync = syncWithD3; // pulls data from D3 into model
 		this.save = pushToServer;
-		this.update_SVG = update_SVG;
+		this.update_SVG = update_SVG; // re-draw
 		
 		// Return sesion
 		function getSession() {
@@ -108,11 +123,22 @@ var cardsession = function(){
 			return Cards;
 		}
 		
-		
+		// Delete a single card by id
 		function deleteCard(id) {
 			if( Cards[id]){
 				delete Cards[id];
 				return reorder();
+			} else {
+				return false;
+			}
+		}
+		
+		// Delete a single card by id
+		function setCoords( id, x, y) {
+			if( Cards[id]){
+				Cards[id].x = x;
+				Cards[id].y = y;
+				return true;
 			} else {
 				return false;
 			}
@@ -147,12 +173,12 @@ var cardsession = function(){
 			    type: 'GET',
 			    url: "/seventools/cardsession/json/",
 			    dataType: 'json',
-			    success: function(data){saveCards(data)},
+			    success: function(data){updateCards(data)},
 			    data: { id: session}
 			});
 			
 			// Iterate and store as current session data
-			function saveCards(data) {
+			function updateCards(data) {
 				var nCards = {};
 				$.each(data, function(key,val) {
 					var card = val.fields;
@@ -166,6 +192,22 @@ var cardsession = function(){
 			
 			console.log("end cardsession.initilize")
 		}
+		
+		// Send all data to sever to save
+		function pushToServer() {
+			$.ajax({
+		        url: "/seventools/cardsession/saveallcards/",
+		        type: 'POST',
+		        contentType: 'application/json; charset=utf-8',
+		        data: JSON.stringify({session: session, cards: Cards}),
+		        dataType: 'text',
+		        success: function(result) {
+		        	console.log(result);
+		            console.log(result.Result);
+		        }
+		    });
+						
+		}		
 		
 		/*
 		 * Get position data from the current d3 plot
@@ -196,32 +238,14 @@ var cardsession = function(){
 			Cards = nCards;
 		}
 		
-		// Send all data to sever to save
-		// First, create JSON serializer for cardsession
-		// Then, send this via POST
-		function pushToServer() {
-			$.ajax({
-		        url: "/seventools/cardsession/saveallcards/",
-		        type: 'POST',
-		        contentType: 'application/json; charset=utf-8',
-		        data: JSON.stringify({session: session, cards: Cards}),
-		        dataType: 'text',
-		        success: function(result) {
-		        	console.log(result);
-		            console.log(result.Result);
-		        }
-		    });
-						
-		}
-		
 		// Return as an array of cards with ids for use in d3
-		function CardsArray(){
+		function CardsArray() {
 			var c_arr = [];
 			$.each(Cards, function(key,val) {
 				var ncard = {
 					id: key,
-					x: (val.x * dropWIDTH),
-					y: (val.y * dropHEIGHT),
+					x: (val.x * config.dropWIDTH),
+					y: (val.y * config.dropHEIGHT),
 					name: val.name
 				}
 				c_arr.push (ncard);
@@ -229,7 +253,6 @@ var cardsession = function(){
 			
 			return c_arr;
 		}
-		
 		
 		// Redraw cards
 		function update_SVG() {
@@ -246,7 +269,7 @@ var cardsession = function(){
 		   	var card_disp_enter = card_disp.enter().append("g")
 		      	.attr("class","svg_card")
 				.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; }) // transform to x and y for card
-				.attr("font-size",card_width*cardSizeMulti/9)
+				.attr("font-size",config.card_width*config.cardSizeMulti/9)
 				.on("click", selectSvgCard)
 				.on("dblclick", function(d){ changeCardName(d.name, this)})
 				.call(d3.behavior.drag()
@@ -257,16 +280,16 @@ var cardsession = function(){
 			card_disp_enter.append("rect")
 				.attr("x", 1)
 		      	.attr("y",1)
-				.attr("width", card_width*cardSizeMulti)
-				.attr("height", card_height*cardSizeMulti)
-				.attr("rx", card_width*cardRoundedFactor)
-				.attr("ry", card_height*cardRoundedFactor)
+				.attr("width", config.card_width*config.cardSizeMulti)
+				.attr("height", config.card_height*config.cardSizeMulti)
+				.attr("rx", config.card_width*config.cardRoundedFactor)
+				.attr("ry", config.card_height*config.cardRoundedFactor)
 	
 			// Add and position text
 			// 3 text elements are used to wrap 3 lines
 			var nlines = 1;
-			var cardMiddleWidth = card_width*cardSizeMulti/2;
-			var cardMiddleHeight = card_height*cardSizeMulti/2;
+			var cardMiddleWidth = config.card_width*config.cardSizeMulti/2;
+			var cardMiddleHeight = config.card_height*config.cardSizeMulti/2;
 			var line_spacing = 10;
 			card_disp_enter.append("text")
 				.attr("x", cardMiddleWidth)
@@ -294,7 +317,7 @@ var cardsession = function(){
 			// Not getting red of old cards
 			card_disp.exit()
 				.transition().duration(500)
-				.attr("transform", function(d) { return "translate(" + -card_width*cardSizeMulti + "," + d.y + ")"; })
+				.attr("transform", function(d) { return "translate(" + -config.card_width*config.cardSizeMulti + "," + d.y + ")"; })
 					.remove ();
 			
 			// Update table display too
@@ -307,6 +330,7 @@ var cardsession = function(){
 	
 	/*
 	 * Called when document.ready
+	 * 
 	 * Initizlizes app
 	 */
 	function startapp(){
@@ -321,28 +345,14 @@ var cardsession = function(){
 			// Determine position of dropped card on drop area
 			var toffset = $(this).offset();
 			var w = $(this).width();
-			var h = $(this).height();
-			var w_rel = (ui.draggable.offset().left - toffset.left)/(w);
-			var h_rel = (ui.draggable.offset().top - toffset.top)/(h);
-    		
-     		// Add card to database
- 			console.log("adding card via xhr");
-     		var card_name = ui.draggable.parents("tr").find("textarea").val();
-     		
-     		var session_id = $("#session_select :selected").val();
-     		$.get("/seventools/cardsession/addcard/", { name: card_name, session_id: session_id, x_coord: w_rel, y_coord: h_rel },
-     		function(data){
-     			console.log(data);
-     			if(data !== "Card added"){
-					alert(data);
-     			}
+			var h = $(this).height();			
+			var w_rel = (ui.draggable.offset().left - toffset.left)/config.dropWIDTH;
+			var h_rel = (ui.draggable.offset().top - toffset.top)/config.dropHEIGHT;
 
-				// Remove card from the queue
-				ui.draggable.parents("tr").remove();
-				
-     			// Wait for card to be added before updating
-				update_cards ();
-     		});
+     		var card_name = ui.draggable.parents("tr").find("textarea").val();
+     		current_session.addCard( card_name, w_rel, h_rel);
+     		current_session.update_SVG();
+     		ui.draggable.parents("tr").remove();
 		});		
 		
 		// Create a new card with the form
@@ -351,31 +361,25 @@ var cardsession = function(){
 			addCardToQueue(card);		
 			$(this).find(':text').val(''); // reset form to avoid duplicates
 		})
+		
+		// Respond to changes in the session
+		// Cards in queue are lost
+		// Nothing is saved
 		$("#session_select :input").change(function(){
-			update_cards ();
+			current_session.initialize();
 		})
 		
-		$('textarea').change(function() {
-		  alert('Text changed.');
-		});
-				
-
-		/* 
-		 * card_visualisation
-		 */
-		
-		// An svg element, top-lft origin
+		// Set up the svg canvas
 		card_vis = d3.select("#droppable").append("svg") // this is an svg
-			.attr("width",dropWIDTH)
-			.attr("height",dropHEIGHT)
+			.attr("width",config.dropWIDTH)
+			.attr("height",config.dropHEIGHT)
 			.attr("class","card_visualisation")
-			.style("padding-right","30px")
 		
 		// Add a g element to contain the cards and allow relatove movement
 		body = card_vis.append("g")
 			.attr("transform", "translate(0,0)");
 				
-		// Start app
+		// Initialize the current session
 		current_session.initialize();
 	}
 	
@@ -498,7 +502,7 @@ var cardsession = function(){
 			console.log("off to left or top");
 			addCardToQueue(d.name);
 			// Remove card from model and redraw
-		} else if ( d.x > dropWIDTH || d.y > dropHEIGHT) {
+		} else if ( d.x > config.dropWIDTH || d.y > config.dropHEIGHT) {
 			console.log("off to bottom or right");
 			addCardToQueue(d.name);
 		}
